@@ -13,6 +13,14 @@ Client *Database::getClient(int fd) {
 	return &clients.find(fd)->second;
 }
 
+std::vector<int> Database::getClientList() {
+	std::vector<int> clientlist;
+	for (std::map< int, Client >::iterator iter = clients.begin(); iter != clients.end(); iter++) {
+		clientlist.push_back(iter->first);
+	}
+	return clientlist;
+}
+
 Channel *Database::getChannel(std::string _name) {
 	if (channels.find(_name) == channels.end()) {
 		return nullptr;
@@ -21,9 +29,25 @@ Channel *Database::getChannel(std::string _name) {
 	}
 }
 
-
 void Database::delClient(int fd) {
 	clients.erase(fd);
+}
+
+bool Database::isExistClient(std::string _nickname) {
+	for (std::map< int, Client >::iterator iter = clients.begin(); iter != clients.end(); iter++) {
+		if (iter->second.getNickname() == _nickname) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void Database::announce(int fd, std::string message) {
+	for (std::map< int, Client >::iterator iter = clients.begin(); iter != clients.end(); iter++) {
+		if (iter->first != fd) {
+			iter->second.setSendBuf(message);
+		}
+	}
 }
 
 void Database::initChannel(int fd, std::string _name) {

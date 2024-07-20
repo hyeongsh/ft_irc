@@ -14,6 +14,7 @@ class Socket {
 		int fd;
 		struct sockaddr_in address;
 		socklen_t address_size;
+		// int create_time;
 
 		void reusePort();
 		void bindSock();

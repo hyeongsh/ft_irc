@@ -17,6 +17,13 @@ void Kqueue::addEvent(int fd, int filter) {
 	change_list.push_back(change);
 }
 
+void Kqueue::addEvent(std::vector<int> client_list, int filter) {
+	for (size_t i = 0; i < client_list.size(); i++) {
+		EV_SET(&change, client_list[i], filter, EV_ADD|EV_ENABLE, 0, 0, NULL);
+		change_list.push_back(change);
+	}
+}
+
 void Kqueue::delEvent(int fd, int filter) {
 	EV_SET(&change, fd, filter, EV_DELETE, 0, 0, NULL);
 	change_list.push_back(change);

@@ -5,28 +5,35 @@
 #include <vector>
 #include <sstream>
 
-#include "Client.hpp"
+#include "Database.hpp"
+
+#define SERVER 0
+#define CLIENT 1
+
+#define NON 0
+#define ONLY 1
+#define ALL 2
 
 class Message {
 	private:
 		Client *clnt;
+		Database *db;
 		std::string prefix;
 		std::string command;
 		std::vector<std::string> params;
-		std::string trailing;
 		
-		std::string makeMessage(bool is_clnt, std::string command, std::string dest, std::string payload);
+		std::string makeSource(bool is_clnt);
 
 	public:
-		Message(Client *clnt);
+		Message(Client *clnt, Database *_db);
 		~Message();
-		std::string getCommand();
-		std::string getParams(int i);
-		std::string getTrailing();
+		std::string getCommand() const;
+		std::string getParams(int i) const;
 		
-		void nickCommand();
-		void userCommand();
-		void pingCommand();
+		int nickCommand();
+		int userCommand();
+		int pingCommand();
+		int joinCommand();
 };
 
 #endif

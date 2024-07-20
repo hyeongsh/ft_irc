@@ -55,34 +55,39 @@ void Server::sendMessage(struct kevent &event) {
 }
 
 void Server::parsing(Client *clnt) {
+	int flag;
 	while (clnt->getRecvBuf().size()) {
 		std::cout << clnt->getRecvBuf() << std::endl;
-		Message message(clnt);
+		Message message(clnt, &database);
 		if (message.getCommand() == "NICK") {
-			message.nickCommand();
+			flag = message.nickCommand();
 		} else if (message.getCommand() == "USER") {
-			message.userCommand();
-			kq.addEvent(clnt->getFd(), EVFILT_WRITE);
+			flag = message.userCommand();
 		} else if (message.getCommand() == "PING") {
-			message.pingCommand();
-		} /* else if (message.getCommand() == "PRIVMSG") {
-			message.msgCommand();
+			flag = message.pingCommand();
 		} else if (message.getCommand() == "JOIN") {
-			message.joinCommand();
+			flag = message.joinCommand();
+		} /* else if (message.getCommand() == "PRIVMSG") {
+			flag = message.msgCommand();
 		} else if (message.getCommand() == "PART") {
-			message.partCommand();
+			flag = message.partCommand();
 		} else if (message.getCommand() == "QUIT") {
-			message.quitCommand();
+			flag = message.quitCommand();
 		} else if (message.getCommand() == "KICK") {
-			message.kickCommand();
+			flag = message.kickCommand();
 		} else if (message.getCommand() == "MODE") {
-			message.modeCommand();
+			flag = message.modeCommand();
 		} else if (message.getCommand() == "") {
-			message.moreCommand();
+			flag = message.moreCommand();
 		} */
 		std::cout << "Nickname: " << clnt->getNickname() << std::endl;
 		std::cout << "Username: " << clnt->getUsername() << std::endl;
 		std::cout << "Address: " << clnt->getIp() << std::endl;
 		std::cout << "Realname: " << clnt->getRealname() << std::endl;
+		if (flag == ONLY) {
+			kq.addEvent(clnt->getFd(), EVFILT_WRITE);
+		} else if (flag == ALL) {
+			kq.addEvent(database.getClientList(), EVFILT_WRITE);
+		}
 	}
 }
