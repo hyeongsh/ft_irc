@@ -24,11 +24,10 @@ class Kqueue {
 		~Kqueue();
 
 		void addEvent(int fd, int filter);
-		void addEvent(std::vector<int> client_list, int filter);
 		void delEvent(int fd, int filter);
+		void setTimer(int fd);
 		int updateEvent();
 		struct kevent getEvent(int i);
-
 };
 
 #endif

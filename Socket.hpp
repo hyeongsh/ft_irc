@@ -3,18 +3,16 @@
 #define SOCKET_HPP
 
 #include <iostream>
-
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
 
 class Socket {
 	private:
-		int port;
-		std::string password;
-		int fd;
-		struct sockaddr_in address;
-		socklen_t address_size;
-		// int create_time;
+		int _port;
+		int _fd;
+		struct sockaddr_in _address;
+		socklen_t _address_size;
 
 		void reusePort();
 		void bindSock();
@@ -22,7 +20,7 @@ class Socket {
 		void setNonBlock(int fd);
 
 	public:
-		Socket(std::string &_port, std::string &_password);
+		Socket(std::string &port);
 		~Socket();
 
 		int acceptSock();

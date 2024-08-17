@@ -9,7 +9,9 @@ int main(int ac, char **av) {
 		}
 		Server server(av[1], av[2]);
 		server.run();
-	} catch (std::exception &e) {
+	}
+	catch (std::exception &e) {
 		std::cerr << e.what() << std::endl;
 	}
+	return (0);
 }

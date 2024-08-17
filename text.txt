@@ -1,9 +1,0 @@
-NICK hyeongsh
-
-USER hyeongsh hyeongsh 127.0.0.1 :신형섭
-
-MODE hyeongsh +i
-
-PING irc.seoul42.com
-
-QUIT :leaving

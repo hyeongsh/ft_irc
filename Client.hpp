@@ -7,45 +7,58 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <set>
 
-#define BUFFER_SIZE 100
+#define BUFFER_SIZE 520
 #define END 0
 #define CONTINUE 1
 
-class Client {
-	private:
-		int fd;
-		std::string recv_buffer;
-		std::string send_buffer;
+class Client
+{
+private:
+	int _fd;
+	bool _is_passed;
+	bool _is_ping;
+	std::string _nickname;
+	std::string _username;
+	std::string _realname;
+	std::string _ip;
 
-		std::string nickname;
-		std::string username;
-		std::string realname;
-		std::string ip;
+	std::string _recv_buffer;
+	std::string _send_buffer;
 
-	public:
-		Client(int _fd);
-		~Client();
+	std::set<std::string> _joined_channels;
 
-		int recvSocket();
-		int sendSocket();
+public:
+	Client(int _fd);
+	~Client();
 
-		int getFd() const;
-		std::string getRecvBuf() const;
-		std::string getSendBuf() const;
-		void setRecvBuf(std::string message);
-		void setSendBuf(std::string message);
-		void clearRecvBuf();
-		void clearSendBuf();
+	void setNickname(std::string const &nickname);
+	void setUsername(std::string const &username);
+	void setRealname(std::string const &realname);
+	void setRecvBuf(std::string message);
+	void setSendBuf(std::string message);
+	void addChannel(std::string channel);
+	void delChannel(std::string channel);
+	void setPassed(bool flag);
+	void setPing(bool flag);
 
-		std::string getNickname();
-		std::string getUsername();
-		std::string getIp();
-		std::string getRealname();
-		void setNickname(std::string _nickname);
-		void setUsername(std::string _username);
-		void setIp(std::string _ip);
-		void setRealname(std::string _realname);
+	int getFd() const;
+	std::string getNickname() const;
+	std::string getUsername() const;
+	std::string getIp() const;
+	std::string getRealname() const;
+	std::string getRecvBuf() const;
+	std::string getSendBuf() const;
+	std::set<std::string> getJoinedChannels() const;
+	bool getPassed() const;
+	bool getPing() const;
+
+	void clearRecvBuf();
+	void clearSendBuf();
+
+	int recvSocket();
+	int sendSocket();
 };
 
 #endif

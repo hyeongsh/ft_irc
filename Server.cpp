@@ -1,93 +1,141 @@
- 
+
 #include "Server.hpp"
 
-Server::Server(std::string _port, std::string _password) : serv(_port, _password), kq(), database() {}
+Server::Server(std::string _port, std::string password) : _serv(_port), _password(password), _kq(), _data_manager(&_kq), _created(time(NULL)) {}
 
 Server::~Server() {}
 
 void Server::run() {
-	kq.addEvent(serv.getFd(), EVFILT_READ);
-	kq.updateEvent();
+	_kq.addEvent(_serv.getFd(), EVFILT_READ);
 	while (1) {
-		int size = kq.updateEvent();
+		int size = _kq.updateEvent();
 		for (int i = 0; i < size; i++) {
-			struct kevent event = kq.getEvent(i);
+			struct kevent event = _kq.getEvent(i);
 			if (event.flags & EV_ERROR) {
 				std::cerr << "EV_ERROR: " << event.data << std::endl;
 			}
-			if (static_cast<int>(event.ident) == serv.getFd()) {
-				connectClient();
+			if (static_cast<int>(event.ident) == _serv.getFd()) {
+				makeNewConnection();
 			} else if (event.filter == EVFILT_READ) {
-				readMessage(event);
+				eventReadExec(event);
 			} else if (event.filter == EVFILT_WRITE) {
-				sendMessage(event);
+				eventWriteExec(event);
+			} else if (event.filter == EVFILT_TIMER) {
+				eventTimerExec(event);
 			}
 		}
 	}
-	close(serv.getFd());
+	close(_serv.getFd());
 }
 
-void Server::connectClient() {
-	int clnt_sock = serv.acceptSock();
-	database.initClient(clnt_sock);
-	kq.addEvent(clnt_sock, EVFILT_READ);
-	std::cout << "connected client: " << clnt_sock << std::endl;
+void Server::makeNewConnection() {
+	int clnt_sock = _serv.acceptSock();
+	Client *clnt = new Client(clnt_sock);
+	_data_manager.addClient(clnt);
+	_kq.addEvent(clnt_sock, EVFILT_READ);
+	_kq.setTimer(clnt_sock);
 }
 
-void Server::readMessage(struct kevent &event) {
-	Client *clnt = database.getClient(event.ident);
-	int clnt_fd = clnt->getFd();
-	int result = clnt->recvSocket();
-	if (result == EOF) {
-		std::cout << "closed client: " << clnt_fd << std::endl;
-		database.delClient(clnt_fd);
-		close(clnt_fd);
-	} else if (result == END) {
-		parsing(clnt);
+void Server::eventReadExec(struct kevent event) {
+	Client *clnt = _data_manager.getClient(event.ident);
+	if (clnt != NULL) {
+		int result = clnt->recvSocket();
+		if (result == EOF) {
+			_data_manager.sendToClientChannels(clnt, ":" + clnt->getNickname() + "!" + clnt->getUsername() + "@" + clnt->getIp() + " QUIT :Client Disconnected\r\n");
+			clnt->setPassed(false);
+			_kq.delEvent(clnt->getFd(), EVFILT_READ);
+			_kq.addEvent(clnt->getFd(), EVFILT_WRITE);
+		}
+		else if (result == END) {
+			parsing(clnt);
+		}
 	}
 }
 
-void Server::sendMessage(struct kevent &event) {
-	Client *clnt = database.getClient(event.ident);
-	if (clnt->sendSocket()) {
-		kq.delEvent(clnt->getFd(), EVFILT_WRITE);
+void Server::eventWriteExec(struct kevent event) {
+	Client *clnt = _data_manager.getClient(event.ident);
+	if (clnt != NULL) {
+		if (clnt->sendSocket()) {
+			_kq.delEvent(clnt->getFd(), EVFILT_WRITE);
+			if (clnt->getPassed()) {
+				_kq.addEvent(clnt->getFd(), EVFILT_READ);
+			} else {
+				// std::cout << "closed client: " << clnt->getFd() << std::endl;
+				std::set<std::string> chans = clnt->getJoinedChannels();
+				for (std::set<std::string>::iterator it = chans.begin(); it != chans.end(); ++it) {
+					Channel *chan = _data_manager.getChannel(*it);
+					if (chan != nullptr) {
+						_data_manager.delClientFromChannel(clnt, chan);
+					}
+				}
+				_kq.delEvent(clnt->getFd(), EVFILT_TIMER);
+				close(clnt->getFd());
+				_data_manager.delClient(clnt->getFd());
+			}
+		}
+	}
+}
+
+void Server::eventTimerExec(struct kevent event) {
+	Client *clnt = _data_manager.getClient(event.ident);
+	if (clnt != NULL) {
+		if (clnt->getPing()) {
+			clnt->setSendBuf("PING :ping pong\r\n");
+			clnt->setPing(false);
+			_kq.delEvent(clnt->getFd(), EVFILT_READ);
+			_kq.addEvent(clnt->getFd(), EVFILT_WRITE);
+		} else {
+			std::string source = ":" + clnt->getNickname() + "!" + clnt->getUsername() + "@" + clnt->getIp();
+			_data_manager.sendToClient(clnt, ":irc.seoul42.com NOTICE " + clnt->getNickname() + " :Ping Timeout\r\n");
+			_data_manager.sendToClientChannels(clnt, source + " QUIT :Ping Timeout\r\n");
+			clnt->setPassed(false);
+			_kq.delEvent(clnt->getFd(), EVFILT_READ);
+			_kq.addEvent(clnt->getFd(), EVFILT_WRITE);
+		}
 	}
 }
 
 void Server::parsing(Client *clnt) {
-	int flag;
 	while (clnt->getRecvBuf().size()) {
-		std::cout << clnt->getRecvBuf() << std::endl;
-		Message message(clnt, &database);
-		if (message.getCommand() == "NICK") {
-			flag = message.nickCommand();
-		} else if (message.getCommand() == "USER") {
-			flag = message.userCommand();
-		} else if (message.getCommand() == "PING") {
-			flag = message.pingCommand();
-		} else if (message.getCommand() == "JOIN") {
-			flag = message.joinCommand();
-		} /* else if (message.getCommand() == "PRIVMSG") {
-			flag = message.msgCommand();
-		} else if (message.getCommand() == "PART") {
-			flag = message.partCommand();
-		} else if (message.getCommand() == "QUIT") {
-			flag = message.quitCommand();
-		} else if (message.getCommand() == "KICK") {
-			flag = message.kickCommand();
-		} else if (message.getCommand() == "MODE") {
-			flag = message.modeCommand();
-		} else if (message.getCommand() == "") {
-			flag = message.moreCommand();
-		} */
-		std::cout << "Nickname: " << clnt->getNickname() << std::endl;
-		std::cout << "Username: " << clnt->getUsername() << std::endl;
-		std::cout << "Address: " << clnt->getIp() << std::endl;
-		std::cout << "Realname: " << clnt->getRealname() << std::endl;
-		if (flag == ONLY) {
-			kq.addEvent(clnt->getFd(), EVFILT_WRITE);
-		} else if (flag == ALL) {
-			kq.addEvent(database.getClientList(), EVFILT_WRITE);
+		// std::cout << "receive: " << clnt->getRecvBuf();
+		Executor executor(clnt, &_data_manager);
+		std::string command = executor.getCommand();
+		if (command == "PASS") {
+			executor.passCommand(_password);
+		} else if (command == "NICK") {
+			executor.nickCommand(getCreated());
+		} else if (command == "USER") {
+			executor.userCommand(getCreated());
+		} else if (command == "PING") {
+			executor.pingCommand();
+		} else if (command == "PONG") {
+			executor.pongCommand();
+		} else if (command == "QUIT") {
+			executor.quitCommand();
+		} else if (command == "JOIN") {
+			executor.joinCommand();
+		} else if (command == "PART") {
+			executor.partCommand();
+		} else if (command == "TOPIC") {
+			executor.topicCommand();
+		} else if (command == "INVITE") {
+			executor.inviteCommand();
+		} else if (command == "KICK") {
+			executor.kickCommand();
+		} else if (command == "MODE") {
+			executor.modeCommand();
+		} else if (command == "PRIVMSG") {
+			executor.privmsgCommand();
+		} else {
+			executor.nonCommand();
 		}
+		// std::cout << clnt->getSendBuf();
 	}
+}
+
+std::string Server::getCreated() {
+    struct tm* tm_info = std::localtime(&_created);
+    char buffer[80];
+    std::strftime(buffer, 80, "%a %b %d %Y at %H:%M:%S KST", tm_info);
+    return std::string(buffer);
 }
