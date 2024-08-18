@@ -11,9 +11,6 @@ void Server::run() {
 		int size = _kq.updateEvent();
 		for (int i = 0; i < size; i++) {
 			struct kevent event = _kq.getEvent(i);
-			if (event.flags & EV_ERROR) {
-				std::cerr << "EV_ERROR: " << event.data << std::endl;
-			}
 			if (static_cast<int>(event.ident) == _serv.getFd()) {
 				makeNewConnection();
 			} else if (event.filter == EVFILT_READ) {

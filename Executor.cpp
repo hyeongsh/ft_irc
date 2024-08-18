@@ -106,7 +106,7 @@ void Executor::userCommand(std::string create_time) {
 			_data_manager->sendToClient(_clnt, makeSource(SERVER) + " 002 " + _clnt->getNickname() + " :Your host is irc.seoul42.com\r\n");
 			_data_manager->sendToClient(_clnt, makeSource(SERVER) + " 003 " + _clnt->getNickname() + " :This server was created " + create_time + "\r\n");
 			_data_manager->sendToClient(_clnt, makeSource(SERVER) + " 004 " + _clnt->getNickname() + " :irc.seoul42.com 1.0\r\n");
-				_data_manager->sendToClient(_clnt, makeSource(CLIENT) + " MODE " + _clnt->getNickname() + "\r\n");
+			_data_manager->sendToClient(_clnt, makeSource(CLIENT) + " MODE " + _clnt->getNickname() + "\r\n");
 			_data_manager->sendToClient(_clnt, "PING :ping pong\r\n");
 			_clnt->setPing(false);
 		}
