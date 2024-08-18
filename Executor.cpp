@@ -179,15 +179,18 @@ void Executor::joinCommand() {
 				chan = new Channel(chans[i].substr(1, chans[i].size()));
 				_data_manager->addChannel(chan);
 				role = CHAN_OPR;
-			} else if (!chan->getKey().empty()) {
+			}
+			if (!chan->getKey().empty()) {
 				if (keys.size() <= i || keys[i] != chan->getKey()) {
 					_data_manager->sendToClient(_clnt, makeSource(SERVER) + " 475 " + _clnt->getNickname() + " " + chans[i] + " :Cannot join channel (+k)\r\n");
 					continue ;
 				}
-			} else if (chan->getLimit() > 0 && (int)chan->getClientNum() >= chan->getLimit()) {
+			}
+			if (chan->getLimit() > 0 && (int)chan->getClientNum() >= chan->getLimit()) {
 				_data_manager->sendToClient(_clnt, makeSource(SERVER) + " 471 " + _clnt->getNickname() + " " + chans[i] + " :Cannot join channel (+l)\r\n");
 				continue ;
-			} else if (chan->getInviteOnly()) {
+			}
+			if (chan->getInviteOnly()) {
 				if (chan->isInvited(_clnt->getFd()) == 0) {
 					_data_manager->sendToClient(_clnt, makeSource(SERVER) + " 473 " + _clnt->getNickname() + " " + chans[i] + " :Cannot join channel (+i)\r\n");
 					continue ;
